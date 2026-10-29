@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsPulse — AI Operations Intelligence & Decision Engine</title>
+  
+  <!-- Inter Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#E8F5EE',
+              100: '#D1EBDD',
+              200: '#A3D7BB',
+              500: '#1B8A5A',
+              700: '#134E39',
+              800: '#0E3A2B',
+              900: '#08251B'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & Babel Standalone -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* Custom striped diagonal pattern for bars and donut charts matching reference image */
+    .bg-striped {
+      background-image: repeating-linear-gradient(45deg, #E2E8F0, #E2E8F0 4px, #F1F5F9 4px, #F1F5F9 8px);
+    }
+    .bg-striped-green {
+      background-image: repeating-linear-gradient(45deg, #134E39, #134E39 4px, #1a6349 4px, #1a6349 8px);
+    }
+    /* Subtle wave pattern for dark cards */
+    .bg-waves {
+      background-image: radial-gradient(circle at 100% 100%, rgba(34, 197, 94, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 0% 0%, rgba(20, 83, 45, 0.4) 0%, transparent 60%);
+    }
+  </style>
+</head>
+<body class="bg-[#F2F4F7] text-slate-800 font-sans antialiased selection:bg-[#134E39] selection:text-white min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+
+  <div id="root" class="w-full max-w-[1520px]"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- DATA STORE (DEV-103 Spec) ---
+    const INITIAL_TEAMS = [
+      { id: 'team-a', name: 'Team A - Payments', activeTickets: 9, maxCapacity: 10, skills: ['Payments', 'Billing', 'Refunds'], lead: 'Alexandra Deff', role: 'Payment Core', avatar: '👩🏻‍💻', color: 'emerald' },
+      { id: 'team-b', name: 'Team B - Payments', activeTickets: 4, maxCapacity: 10, skills: ['Payments', 'Card Processing'], lead: 'Edwin Adenike', role: 'Card & UPI Gateway', avatar: '👨🏽‍💻', color: 'blue' },
+      { id: 'team-c', name: 'Team C - DevOps', activeTickets: 8, maxCapacity: 8, skills: ['Infrastructure', 'Cloud'], lead: 'Isaac Oluwatemilorun', role: 'Cloud Infrastructure', avatar: '👨🏿‍💻', color: 'purple' },
+      { id: 'team-d', name: 'Team D - Support', activeTickets: 5, maxCapacity: 12, skills: ['Authentication', 'Accounts'], lead: 'David Oshodi', role: 'Customer Experience', avatar: '👨🏻‍🦱', color: 'amber' }
+    ];
+
+    const INITIAL_TICKETS = [
+      {
+        id: 'T103',
+        problem: 'Production Server down in US-East cluster',
+        category: 'Infrastructure',
+        priority: 'Critical',
+        pendingHours: 1.0,
+        deadlineHoursLeft: 0.5,
+        assignedTeamId: 'team-c',
+        status: 'Pending',
+        riskScore: 98,
+        riskLevel: 'High',
+        flagReason: 'Critical severity with only 30 mins to SLA breach; DevOps squad is at 100% capacity.',
+        evidence: [
+          'Deadline is in 30 minutes (Threshold buffer is 4.0h)',
+          'DevOps squad is at 100% capacity (8/8 active tasks)',
+          'Historical infrastructure outage MTTR is 1.4h (insufficient margin)'
+        ],
+        suggestedAction: 'Immediate triage & alert on-call DevOps lead',
+        actionType: 'Escalate',
+        actionTaken: null,
+        impactEstimate: 'Prevents customer platform outage & $45k SLA penalties',
+        iconBg: 'bg-indigo-50 text-indigo-600',
+        iconSymbol: '⚡'
+      },
+      {
+        id: 'T104',
+        problem: 'Refund delay for 45 pending merchant orders',
+        category: 'Billing',
+        priority: 'High',
+        pendingHours: 10.0,
+        deadlineHoursLeft: -2.0,
+        assignedTeamId: 'team-a',
+        status: 'Escalated',
+        riskScore: 94,
+        riskLevel: 'High',
+        flagReason: 'SLA is already breached by 2 hours. Requires supervisor fast-track approval.',
+        evidence: [
+          'Customer deadline passed 2.0 hours ago (Breached)',
+          'Pending time (10.0h) is 1.6x the category average (6.2h)',
+          'Manual bank reconciliation queue blocked'
+        ],
+        suggestedAction: 'Escalate to Operations Lead for bulk refund override',
+        actionType: 'Escalate',
+        actionTaken: null,
+        impactEstimate: 'Resolves regulatory dispute & eliminates merchant fee churn',
+        iconBg: 'bg-emerald-50 text-emerald-600',
+        iconSymbol: '💳'
+      },
+      {
+        id: 'T101',
+        problem: 'Payment failure at checkout webhook',
+        category: 'Payments',
+        priority: 'High',
+        pendingHours: 5.0,
+        deadlineHoursLeft: 1.0,
+        assignedTeamId: 'team-a',
+        status: 'Pending',
+        riskScore: 88,
+        riskLevel: 'High',
+        flagReason: 'Team A (Payments) is carrying 9 active tasks. Transferring to Team B avoids customer impact.',
+        evidence: [
+          'Customer deadline is in 60 minutes',
+          'Team A (Payments) has 9/10 active tasks (Overloaded)',
+          'Team B (Payments) has matching skill tag and 6 available slots'
+        ],
+        suggestedAction: 'Reassign to Team B (Payments) which has 6 open slots',
+        actionType: 'Reassign',
+        recommendedTeamId: 'team-b',
+        actionTaken: null,
+        impactEstimate: 'Saves ~45m turnaround time & guarantees SLA compliance',
+        iconBg: 'bg-amber-50 text-amber-600',
+        iconSymbol: '🔄'
+      },
+      {
+        id: 'T106',
+        problem: 'Double deduction on UPI transaction batch',
+        category: 'Payments',
+        priority: 'High',
+        pendingHours: 4.5,
+        deadlineHoursLeft: 1.2,
+        assignedTeamId: 'team-a',
+        status: 'Pending',
+        riskScore: 82,
+        riskLevel: 'High',
+        flagReason: 'Urgent merchant impact with approaching deadline on overloaded team.',
+        evidence: [
+          '1.2 hours until deadline expiration',
+          'Team A is at 90% capacity limit',
+          'Team B has capacity to handle immediately'
+        ],
+        suggestedAction: 'Reassign to Team B (Payments)',
+        actionType: 'Reassign',
+        recommendedTeamId: 'team-b',
+        actionTaken: null,
+        impactEstimate: 'Protects user transaction trust & clears queue',
+        iconBg: 'bg-rose-50 text-rose-600',
+        iconSymbol: '⚠️'
+      },
+      {
+        id: 'T108',
+        problem: 'Merchant settlement delayed batch job',
+        category: 'Billing',
+        priority: 'High',
+        pendingHours: 8.0,
+        deadlineHoursLeft: 0.5,
+        assignedTeamId: 'team-a',
+        status: 'Pending',
+        riskScore: 91,
+        riskLevel: 'High',
+        flagReason: 'Only 30 minutes left before regulatory breach; Team A overloaded.',
+        evidence: [
+          'Approaching regulatory compliance deadline in 30 minutes',
+          'Pending 8 hours on overloaded squad',
+          'Target squad has available capacity'
+        ],
+        suggestedAction: 'Reassign to Team B (Payments) immediately',
+        actionType: 'Reassign',
+        recommendedTeamId: 'team-b',
+        actionTaken: null,
+        impactEstimate: 'Eliminates compliance audit breach',
+        iconBg: 'bg-cyan-50 text-cyan-600',
+        iconSymbol: '📊'
+      },
+      {
+        id: 'T102',
+        problem: 'OAuth login issue on iOS app v4.2',
+        category: 'Authentication',
+        priority: 'Medium',
+        pendingHours: 2.0,
+        deadlineHoursLeft: 8.0,
+        assignedTeamId: 'team-d',
+        status: 'In Progress',
+        riskScore: 52,
+        riskLevel: 'Medium',
+        flagReason: 'Sufficient deadline buffer (8 hrs), under monitoring.',
+        evidence: [
+          '8.0 hours remaining on SLA window',
+          'Support squad operating at healthy 42% capacity'
+        ],
+        suggestedAction: 'Keep under monitoring',
+        actionType: 'Monitor',
+        actionTaken: null,
+        impactEstimate: 'Standard FIFO resolution',
+        iconBg: 'bg-blue-50 text-blue-600',
+        iconSymbol: '📱'
+      },
+      {
+        id: 'T105',
+        problem: 'Password reset email link broken in Safari browser',
+        category: 'Authentication',
+        priority: 'Low',
+        pendingHours: 1.0,
+        deadlineHoursLeft: 24.0,
+        assignedTeamId: 'team-d',
+        status: 'Pending',
+        riskScore: 22,
+        riskLevel: 'Low',
+        flagReason: 'Routine request with 24 hours deadline remaining.',
+        evidence: [
+          '24 hours deadline buffer',
+          'Low urgency user impact'
+        ],
+        suggestedAction: 'Process in standard queue',
+        actionType: 'Normal Queue',
+        actionTaken: null,
+        impactEstimate: 'Standard resolution',
+        iconBg: 'bg-slate-100 text-slate-600',
+        iconSymbol: '🔑'
+      }
+    ];
+
+    const HOURLY_WORKLOAD_FORECAST = [
+      { day: 'S', incoming: 35, capacity: 75, status: 'Normal', height: 'h-16', fill: 'bg-striped' },
+      { day: 'M', incoming: 65, capacity: 75, status: 'Elevated', height: 'h-24', fill: 'bg-[#134E39]' },
+      { day: 'T', incoming: 74, capacity: 75, status: 'Near-Peak', height: 'h-28', fill: 'bg-emerald-400', badge: '74%' },
+      { day: 'W', incoming: 125, capacity: 75, status: 'Surge Spiking', height: 'h-36', fill: 'bg-[#134E39]' },
+      { day: 'T', incoming: 50, capacity: 75, status: 'Normal', height: 'h-20', fill: 'bg-striped' },
+      { day: 'F', incoming: 45, capacity: 75, status: 'Normal', height: 'h-18', fill: 'bg-striped' },
+      { day: 'S', incoming: 30, capacity: 75, status: 'Low', height: 'h-14', fill: 'bg-striped' }
+    ];
+
+    const AI_PATTERN_INSIGHTS = [
+      {
+        title: 'Recurring Webhook Latency Bottleneck',
+        category: 'Payments',
+        frequency: 'Recurring (High)',
+        summary: '42% of payment delays stem from partner bank webhook retries exhausting connection pools during peak transaction windows (11:00 - 14:00).',
+        tags: ['Webhook Exhaustion', 'UPI Latency', 'Timeouts']
+      },
+      {
+        title: 'Merchant Reconciliation Delays',
+        category: 'Billing',
+        frequency: 'Systemic Delay',
+        summary: 'Billing and Refund tickets average 6.2h turnaround time because 68% require manual supervisor confirmation for transactions exceeding $1,000.',
+        tags: ['Manual Audit Gap', 'High-Value Threshold', 'Refund Lag']
+      },
+      {
+        title: 'Monday Deployment Outage Surge',
+        category: 'Infrastructure',
+        frequency: 'Predictable Spike',
+        summary: 'DevOps squad experiences a 100% capacity saturation every Monday following morning cluster configuration updates.',
+        tags: ['Cluster Deployments', 'Capacity Saturation', 'DevOps On-Call']
+      }
+    ];
+
+    const PERFORMANCE_SCORECARD = {
+      baseline: {
+        slaComplianceRate: '68.5%',
+        avgTurnaroundHours: '4.8h',
+        overloadedSquadHours: '18.5h / week',
+        monthlyBreaches: 94,
+        productivityIndex: '62 / 100'
+      },
+      proposed: {
+        slaComplianceRate: '96.2%',
+        avgTurnaroundHours: '1.2h',
+        overloadedSquadHours: '2.1h / week',
+        monthlyBreaches: 8,
+        productivityIndex: '94 / 100'
+      },
+      improvements: {
+        slaGain: '+27.7%',
+        timeReduction: '-75.0%',
+        burnoutReduction: '-88.6%',
+        breachReduction: '-91.5%',
+        productivityGain: '+51.6%'
+      }
+    };
+
+    // --- LOGIN PAGE (MATCHING DONEZO LIGHT CLEAN DESIGN) ---
+    function LoginPage({ onLogin }) {
+      const [email, setEmail] = useState('prakhar@opspulse.ai');
+      const [password, setPassword] = useState('••••••••••••');
+      const [role, setRole] = useState('Senior Operations Manager');
+
+      return (
+        <div className="w-full max-w-lg mx-auto bg-white rounded-3xl p-8 md:p-10 shadow-2xl border border-slate-100">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-[#134E39] text-white flex items-center justify-center font-bold text-lg shadow-sm">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <span className="text-xl font-extrabold text-slate-900 tracking-tight">OpsPulse</span>
+              <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-[#134E39] border border-emerald-200">DEV-103</span>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Manager Sign In</h1>
+            <p className="text-xs text-slate-500 mt-1">Access the AI operations intelligence decision engine and squad dispatch queue.</p>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); onLogin({ name: 'Prakhar Singh', email, role, avatar: 'PS' }); }} className="space-y-4 text-xs">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Work Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-xs focus:outline-none focus:border-[#134E39] focus:bg-white transition" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-xs focus:outline-none focus:border-[#134E39] focus:bg-white transition" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Manager Role</label>
+              <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-xs focus:outline-none focus:border-[#134E39] focus:bg-white transition">
+                <option value="Senior Operations Manager">Senior Operations Manager (Full Dispatch Authority)</option>
+                <option value="Squad Lead">Squad Lead (Workload Balancing)</option>
+              </select>
+            </div>
+            <button type="submit" className="w-full py-3 px-4 text-xs font-bold text-white bg-[#134E39] hover:bg-[#0E3A2B] rounded-xl shadow-md transition cursor-pointer">
+              Sign In to OpsPulse Dashboard →
+            </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Instant Demo Logins</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button type="button" onClick={() => onLogin({ name: 'Prakhar Singh', role: 'Senior Operations Manager', email: 'prakhar@opspulse.ai', avatar: 'PS' })} className="text-left p-3 rounded-xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-300 transition cursor-pointer">
+                <div className="font-semibold text-slate-900">Prakhar Singh</div>
+                <div className="text-[10px] text-slate-500">Ops Manager</div>
+              </button>
+              <button type="button" onClick={() => onLogin({ name: 'Ansh Aditya', role: 'API Lead', email: 'ansh@opspulse.ai', avatar: 'AA' })} className="text-left p-3 rounded-xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-300 transition cursor-pointer">
+                <div className="font-semibold text-slate-900">Ansh Aditya</div>
+                <div className="text-[10px] text-slate-500">Backend Lead</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- MAIN APP COMPONENT ---
+    function App() {
+      const [user, setUser] = useState({
+        name: 'Prakhar Singh',
+        role: 'Senior Operations Manager',
+        email: 'prakhar@opspulse.ai',
+        avatar: 'PS'
+      });
+      const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'tasks', 'bottlenecks', 'squads', 'explainability', 'scorecard'
+      const [tickets, setTickets] = useState(INITIAL_TICKETS);
+      const [teams, setTeams] = useState(INITIAL_TEAMS);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [selectedSquadId, setSelectedSquadId] = useState('team-a');
+      const [selectedTicket, setSelectedTicket] = useState(null);
+      const [explainTicketId, setExplainTicketId] = useState('T101');
+      const [scorecardMode, setScorecardMode] = useState('comparison');
+      const [isUploadOpen, setIsUploadOpen] = useState(false);
+      const [csvInput, setCsvInput] = useState('');
+      const [toast, setToast] = useState('');
+      
+      // Live Dispatch Timer State
+      const [timerSeconds, setTimerSeconds] = useState(5048); // 01:24:08
+      const [isTimerRunning, setIsTimerRunning] = useState(true);
+
+      useEffect(() => {
+        let interval = null;
+        if (isTimerRunning) {
+          interval = setInterval(() => {
+            setTimerSeconds(sec => sec + 1);
+          }, 1000);
+        }
+        return () => clearInterval(interval);
+      }, [isTimerRunning]);
+
+      const formatTimer = (totalSeconds) => {
+        const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+        const secs = String(totalSeconds % 60).padStart(2, '0');
+        return `${hrs}:${mins}:${secs}`;
+      };
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 4000);
+      };
+
+      // Metrics
+      const totalTickets = tickets.length;
+      const highRiskTickets = tickets.filter(t => t.riskLevel === 'High' && t.status !== 'Resolved').length;
+      const slaBreached = tickets.filter(t => t.deadlineHoursLeft <= 0 && t.status !== 'Resolved').length;
+      const runningTickets = tickets.filter(t => t.status !== 'Resolved').length;
+      const overloadedTeams = teams.filter(t => (t.activeTickets / t.maxCapacity) >= 0.8).length;
+      const avgPending = (tickets.reduce((sum, t) => sum + t.pendingHours, 0) / (totalTickets || 1)).toFixed(1);
+
+      // Reassign action
+      const handleReassign = (ticketId, targetTeamId) => {
+        const ticket = tickets.find(t => t.id === ticketId);
+        if (!ticket) return;
+
+        const targetTeam = teams.find(tm => tm.id === targetTeamId);
+
+        setTeams(teams.map(tm => {
+          if (tm.id === ticket.assignedTeamId && tm.activeTickets > 0) return { ...tm, activeTickets: tm.activeTickets - 1 };
+          if (tm.id === targetTeamId) return { ...tm, activeTickets: tm.activeTickets + 1 };
+          return tm;
+        }));
+
+        setTickets(tickets.map(t => {
+          if (t.id === ticketId) {
+            const newScore = Math.max(25, t.riskScore - 35);
+            return {
+              ...t,
+              assignedTeamId: targetTeamId,
+              riskScore: newScore,
+              riskLevel: newScore >= 75 ? 'High' : newScore >= 40 ? 'Medium' : 'Low',
+              actionTaken: `Transferred to ${targetTeam?.name.split('-')[0] || targetTeamId}`,
+              suggestedAction: 'Workload successfully balanced'
+            };
+          }
+          return t;
+        }));
+
+        showToast(`✓ Ticket ${ticketId} reassigned to ${targetTeam?.name.split('-')[0]}`);
+      };
+
+      // 1-Click Auto Optimizer (Pillar 3)
+      const handleRunAutoOptimizer = () => {
+        setTeams(teams.map(tm => {
+          if (tm.id === 'team-a') return { ...tm, activeTickets: 5 };
+          if (tm.id === 'team-b') return { ...tm, activeTickets: 8 };
+          return tm;
+        }));
+
+        setTickets(tickets.map(t => {
+          if (t.assignedTeamId === 'team-a' && t.riskLevel === 'High') {
+            const newScore = Math.max(25, t.riskScore - 40);
+            return {
+              ...t,
+              assignedTeamId: 'team-b',
+              riskScore: newScore,
+              riskLevel: 'Low',
+              actionTaken: 'Auto-Optimized: Transferred to Team B (Payments)',
+              suggestedAction: 'Workload successfully balanced by algorithm'
+            };
+          }
+          return t;
+        }));
+
+        showToast('⚡ Auto-Optimizer Executed: 3 bottlenecked tasks rebalanced from Team A to Team B!');
+      };
+
+      const handleEscalate = (ticketId) => {
+        setTickets(tickets.map(t => {
+          if (t.id === ticketId) return { ...t, status: 'Escalated', actionTaken: 'Escalated to Lead' };
+          return t;
+        }));
+        showToast(`⚠️ Ticket ${ticketId} escalated to Operations Lead`);
+      };
+
+      const filteredTickets = tickets.filter(t => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        if (q === 'breached') return t.deadlineHoursLeft <= 0;
+        if (q === 'high') return t.riskLevel === 'High';
+        return t.id.toLowerCase().includes(q) || t.problem.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
+      });
+
+      const actionableRecommendations = tickets.filter(
+        t => (t.actionType === 'Reassign' || t.actionType === 'Escalate') && !t.actionTaken
+      );
+
+      const activeExplainTicket = tickets.find(t => t.id === explainTicketId) || tickets[0];
+      const explainTargetTeam = teams.find(t => t.id === 'team-b');
+
+      if (!user) {
+        return <LoginPage onLogin={setUser} />;
+      }
+
+      return (
+        <div className="bg-white rounded-[28px] md:rounded-[36px] shadow-2xl border border-slate-200/80 p-5 md:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 relative overflow-hidden">
+          
+          {/* TOAST NOTIFICATION */}
+          {toast && (
+            <div className="fixed bottom-8 right-8 z-50 px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center space-x-2 border border-slate-700 animate-bounce">
+              <span className="text-emerald-400 text-base">✦</span>
+              <span>{toast}</span>
+            </div>
+          )}
+
+          {/* LEFT SIDEBAR NAVIGATION (MATCHING DONEZO) */}
+          <aside className="w-full md:w-60 flex-shrink-0 flex flex-col justify-between select-none">
+            <div className="space-y-6">
+              
+              {/* Brand Logo */}
+              <div className="flex items-center space-x-3 px-2 py-1">
+                <div className="w-10 h-10 rounded-2xl bg-[#134E39] text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                  {/* Donezo spiral icon style */}
+                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="9" strokeWidth="2.5" />
+                    <circle cx="12" cy="12" r="4" strokeWidth="2.5" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="text-xl font-extrabold text-slate-900 tracking-tight">OpsPulse</span>
+                </div>
+              </div>
+
+              {/* MENU Section */}
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-2">
+                  Menu
+                </div>
+                <nav className="space-y-1">
+                  {[
+                    { id: 'dashboard', label: 'Dashboard', icon: (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 13h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0 8h6c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm10 0h6c.55 0 1-.45 1-1v-8c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0-18v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1z"/></svg>
+                    ), badge: null },
+                    { id: 'tasks', label: 'Tasks & Queue', icon: (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    ), badge: '12+' },
+                    { id: 'bottlenecks', label: 'Surge Forecast', icon: (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    ), badge: null },
+                    { id: 'scorecard', label: 'Analytics & Impact', icon: (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    ), badge: null },
+                    { id: 'squads', label: 'Team Squads', icon: (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    ), badge: null }
+                  ].map(item => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition cursor-pointer ${
+                          isActive
+                            ? 'bg-[#134E39] text-white shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <span className={isActive ? 'text-white' : 'text-slate-400'}>{item.icon}</span>
+                          <span>{item.label}</span>
+                        </div>
+                        {item.badge && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isActive ? 'bg-[#0E3A2B] text-emerald-200' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {/* GENERAL Section */}
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-2">
+                  General
+                </div>
+                <nav className="space-y-1">
+                  <button
+                    onClick={() => setActiveTab('explainability')}
+                    className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition cursor-pointer ${
+                      activeTab === 'explainability'
+                        ? 'bg-[#134E39] text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                    }`}
+                  >
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>Decision Evidence</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsUploadOpen(true)}
+                    className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition cursor-pointer"
+                  >
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    <span>Import CSV</span>
+                  </button>
+
+                  <button
+                    onClick={() => setUser(null)}
+                    className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                  >
+                    <svg className="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    <span>Logout</span>
+                  </button>
+                </nav>
+              </div>
+
+            </div>
+
+            {/* Bottom Promo / Dispatcher Card (Donezo Dark Forest Green Card) */}
+            <div className="mt-6 bg-[#0E3A2B] bg-waves rounded-3xl p-5 text-white relative overflow-hidden shadow-lg">
+              <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center text-xs mb-3">
+                ✦
+              </div>
+              <h4 className="text-xs font-bold tracking-tight">AI Mobile Dispatcher</h4>
+              <p className="text-[10px] text-emerald-200/70 mt-0.5 leading-relaxed">Real-time surge alerts & 1-click rebalancing on iOS/Android.</p>
+              <button
+                onClick={() => showToast('OpsPulse Mobile Companion App connected')}
+                className="mt-3.5 w-full py-2 px-3 rounded-xl bg-[#1B8A5A] hover:bg-emerald-600 text-white text-[11px] font-bold transition shadow-xs cursor-pointer text-center"
+              >
+                Launch Companion
+              </button>
+            </div>
+          </aside>
+
+          {/* MAIN CONTENT AREA */}
+          <main className="flex-1 flex flex-col space-y-6 overflow-hidden">
+            
+            {/* TOP BAR: SEARCH, NOTIFICATIONS, MANAGER PROFILE */}
+            <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              
+              {/* Search Pill Input with ⌘F */}
+              <div className="relative flex-1 max-w-md">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search ticket, category, or squad..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-12 py-2.5 rounded-full bg-slate-50 border border-slate-200/80 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#134E39] transition"
+                />
+                <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span className="px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-mono text-slate-400 bg-white shadow-2xs">⌘F</span>
+                </span>
+              </div>
+
+              {/* Right Controls: Mail, Notification, Profile */}
+              <div className="flex items-center space-x-3 self-end sm:self-auto">
+                <button
+                  onClick={() => showToast('No unread supervisor notifications')}
+                  className="w-10 h-10 rounded-full border border-slate-200/80 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition cursor-pointer relative"
+                  title="Messages"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </button>
+
+                <button
+                  onClick={() => showToast(`⚡ ${highRiskTickets} tickets currently approaching SLA limit`)}
+                  className="w-10 h-10 rounded-full border border-slate-200/80 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition cursor-pointer relative"
+                  title="Alerts"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                  {highRiskTickets > 0 && (
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                  )}
+                </button>
+
+                {/* Profile Chip */}
+                <div className="flex items-center space-x-2.5 pl-2">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center font-bold text-slate-800 text-sm shadow-xs overflow-hidden">
+                    <span className="text-xl">👨🏻‍💼</span>
+                  </div>
+                  <div className="hidden lg:block text-left">
+                    <div className="text-xs font-bold text-slate-900 leading-tight">{user.name}</div>
+                    <div className="text-[10px] text-slate-400 font-medium">{user.email}</div>
+                  </div>
+                </div>
+              </div>
+
+            </header>
+
+            {/* DASHBOARD TITLE & ACTION BUTTONS */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
+                <p className="text-xs text-slate-500 mt-0.5">Plan, prioritize, and accomplish your tasks with ease.</p>
+              </div>
+
+              <div className="flex items-center space-x-2.5 self-start sm:self-auto">
+                <button
+                  onClick={handleRunAutoOptimizer}
+                  className="px-4 py-2.5 rounded-2xl bg-[#134E39] hover:bg-[#0E3A2B] text-white text-xs font-bold shadow-md hover:shadow-lg transition flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <span>+</span>
+                  <span>⚡ Auto-Optimize</span>
+                </button>
+
+                <button
+                  onClick={() => setIsUploadOpen(true)}
+                  className="px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200/90 shadow-2xs transition cursor-pointer"
+                >
+                  Import Data
+                </button>
+              </div>
+            </div>
+
+            {/* 4 METRIC CARDS (DONEZO STYLE WITH ROUNDED-2XL & DIAGONAL ARROW PILLS) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* CARD 1: PRIMARY FOREST GREEN HERO CARD */}
+              <div className="bg-[#134E39] rounded-3xl p-5 text-white shadow-lg relative overflow-hidden flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-emerald-100">Total Projects</span>
+                  <div className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-xs transition cursor-pointer">
+                    ↗
+                  </div>
+                </div>
+                <div className="my-3">
+                  <div className="text-3xl lg:text-4xl font-extrabold tracking-tight">24</div>
+                </div>
+                <div className="flex items-center space-x-1.5 text-[11px] text-emerald-200">
+                  <span className="px-1.5 py-0.5 rounded-md bg-white/15 text-white font-semibold text-[10px]">5 ↗</span>
+                  <span>Increased from last month</span>
+                </div>
+              </div>
+
+              {/* CARD 2: ENDED / RESOLVED */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">Ended Projects</span>
+                  <div className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-700 text-xs hover:bg-slate-50 transition cursor-pointer">
+                    ↗
+                  </div>
+                </div>
+                <div className="my-3">
+                  <div className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">10</div>
+                </div>
+                <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[10px]">6 ↗</span>
+                  <span>Increased from last month</span>
+                </div>
+              </div>
+
+              {/* CARD 3: RUNNING PROJECTS */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">Running Projects</span>
+                  <div className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-700 text-xs hover:bg-slate-50 transition cursor-pointer">
+                    ↗
+                  </div>
+                </div>
+                <div className="my-3">
+                  <div className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">12</div>
+                </div>
+                <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[10px]">2 ↗</span>
+                  <span>Increased from last month</span>
+                </div>
+              </div>
+
+              {/* CARD 4: PENDING / BREACH AT-RISK */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">Pending Project</span>
+                  <div className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-700 text-xs hover:bg-slate-50 transition cursor-pointer">
+                    ↗
+                  </div>
+                </div>
+                <div className="my-3">
+                  <div className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">2</div>
+                </div>
+                <div className="flex items-center space-x-1.5 text-[11px] text-amber-700">
+                  <span className="px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 font-semibold text-[10px]">On Discuss</span>
+                  <span>SLA monitor</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* TAB CONTENT ROUTING */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6">
+                
+                {/* MIDDLE ROW: PROJECT ANALYTICS PILL BARS + REMINDERS / RECOMMENDATIONS + PROJECT LIST */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                  
+                  {/* PROJECT ANALYTICS (VERTICAL CAPSULE PILL CHART) - 5 COLS */}
+                  <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Project Analytics</h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Weekly ticket volume & capacity headroom</p>
+                    </div>
+
+                    {/* Capsule Pill Chart */}
+                    <div className="flex items-end justify-between px-2 pt-8 pb-2">
+                      {HOURLY_WORKLOAD_FORECAST.map((bar, idx) => (
+                        <div key={idx} className="flex flex-col items-center space-y-2 group relative">
+                          
+                          {/* Floating Pill Tooltip if badge exists */}
+                          {bar.badge && (
+                            <div className="absolute -top-7 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-bold shadow-sm whitespace-nowrap">
+                              {bar.badge}
+                            </div>
+                          )}
+
+                          {/* Hover detail */}
+                          <div className="opacity-0 group-hover:opacity-100 transition absolute -top-8 px-2 py-1 rounded bg-slate-800 text-white text-[9px] pointer-events-none whitespace-nowrap z-10">
+                            {bar.incoming} tasks ({bar.status})
+                          </div>
+
+                          {/* Vertical Capsule Pill Bar */}
+                          <div className={`w-8 ${bar.height} rounded-full overflow-hidden ${bar.fill} transition-all duration-300 transform group-hover:scale-105 shadow-2xs`}></div>
+
+                          {/* Day Letter */}
+                          <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-800 transition">
+                            {bar.day}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* REMINDERS / AI ACTIONS CARD - 3 COLS */}
+                  <div className="lg:col-span-3 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Reminders</h3>
+                      <div className="mt-4">
+                        <h4 className="text-sm font-bold text-slate-900 leading-snug">Meeting with Arc Company</h4>
+                        <p className="text-xs text-slate-400 mt-1">Time : 02.00 pm - 04.00 pm</p>
+                      </div>
+
+                      <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                        <div className="font-semibold text-slate-800 mb-0.5">⚡ Urgent Rebalance</div>
+                        <p className="text-[11px] text-slate-500">Transfer 3 payments tasks from Team A to Team B to avert 30-min SLA penalty.</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleRunAutoOptimizer}
+                      className="w-full mt-4 py-3 px-4 rounded-2xl bg-[#134E39] hover:bg-[#0E3A2B] text-white text-xs font-bold transition flex items-center justify-center space-x-2 shadow-sm cursor-pointer"
+                    >
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                      <span>Start Meeting / Rebalance</span>
+                    </button>
+                  </div>
+
+                  {/* PROJECT / INCIDENT STREAM - 4 COLS */}
+                  <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold text-slate-900">Project Stream</h3>
+                      <button
+                        onClick={() => setActiveTab('tasks')}
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                      >
+                        + New
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { title: 'Develop API Endpoints', date: 'Due date: Nov 26, 2024', icon: '⚡', color: 'text-indigo-600' },
+                        { title: 'Onboarding Flow', date: 'Due date: Nov 28, 2024', icon: '🌀', color: 'text-emerald-600' },
+                        { title: 'Build Dashboard', date: 'Due date: Nov 30, 2024', icon: '✦', color: 'text-amber-600' },
+                        { title: 'Optimize Page Load', date: 'Due date: Dec 5, 2024', icon: '✓', color: 'text-blue-600' },
+                        { title: 'Cross-Browser Testing', date: 'Due date: Dec 6, 2024', icon: '●', color: 'text-purple-600' }
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex items-center space-x-3 p-1.5 hover:bg-slate-50 rounded-xl transition">
+                          <span className={`text-base font-bold ${item.color}`}>{item.icon}</span>
+                          <div className="flex-1 truncate">
+                            <div className="text-xs font-semibold text-slate-900 truncate">{item.title}</div>
+                            <div className="text-[10px] text-slate-400">{item.date}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* BOTTOM ROW: TEAM COLLABORATION + PROJECT PROGRESS GAUGE + TIME TRACKER */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                  
+                  {/* TEAM COLLABORATION (SQUAD ROWS) - 5 COLS */}
+                  <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Team Collaboration</h3>
+                        <p className="text-[11px] text-slate-400">Live engineer dispatch & task allocation</p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('squads')}
+                        className="text-xs font-semibold px-3 py-1 rounded-full border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer"
+                      >
+                        + Add Member
+                      </button>
+                    </div>
+
+                    <div className="space-y-3.5">
+                      {teams.map(tm => {
+                        const isOverloaded = (tm.activeTickets / tm.maxCapacity) >= 0.8;
+                        const statusPill = tm.activeTickets === tm.maxCapacity
+                          ? { text: 'Completed', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+                          : isOverloaded
+                          ? { text: 'In Progress', bg: 'bg-amber-50 text-amber-700 border-amber-200' }
+                          : { text: 'Pending', bg: 'bg-rose-50 text-rose-700 border-rose-200' };
+
+                        return (
+                          <div key={tm.id} className="flex items-center justify-between py-1">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-lg shadow-2xs">
+                                {tm.avatar}
+                              </div>
+                              <div>
+                                <div className="text-xs font-bold text-slate-900 leading-tight">{tm.lead}</div>
+                                <div className="text-[10px] text-slate-400">Working on {tm.name.split('-')[1] || tm.name}</div>
+                              </div>
+                            </div>
+                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${statusPill.bg}`}>
+                              {statusPill.text}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* PROJECT PROGRESS (SEMI-CIRCLE DONUT GAUGE) - 4 COLS */}
+                  <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-between">
+                    <div className="w-full text-left">
+                      <h3 className="text-sm font-bold text-slate-900">Project Progress</h3>
+                      <p className="text-[11px] text-slate-400">Resolution SLA compliance rate</p>
+                    </div>
+
+                    {/* Semi-Circle SVG Gauge */}
+                    <div className="relative my-2 flex flex-col items-center">
+                      <svg width="220" height="125" viewBox="0 0 220 125" className="overflow-visible">
+                        {/* Background track */}
+                        <path
+                          d="M 25 110 A 85 85 0 0 1 195 110"
+                          fill="none"
+                          stroke="#E2E8F0"
+                          strokeWidth="24"
+                          strokeLinecap="round"
+                        />
+                        {/* Striped pending segment */}
+                        <path
+                          d="M 25 110 A 85 85 0 0 1 80 45"
+                          fill="none"
+                          stroke="#CBD5E1"
+                          strokeWidth="24"
+                          strokeDasharray="6 4"
+                          strokeLinecap="round"
+                        />
+                        {/* Dark green completed progress segment */}
+                        <path
+                          d="M 80 45 A 85 85 0 0 1 195 110"
+                          fill="none"
+                          stroke="#134E39"
+                          strokeWidth="24"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      
+                      {/* Center Gauge Percentage */}
+                      <div className="absolute bottom-2 text-center">
+                        <div className="text-3xl font-extrabold text-slate-900 tracking-tight">41%</div>
+                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Project Ended</div>
+                      </div>
+                    </div>
+
+                    {/* Legend matching Donezo image */}
+                    <div className="flex items-center justify-center space-x-4 text-[10px] text-slate-600 pt-2">
+                      <div className="flex items-center space-x-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span>Completed</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#134E39]"></span>
+                        <span>In Progress</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                        <span>Pending</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TIME TRACKER (DONEZO DARK FOREST GREEN CARD) - 3 COLS */}
+                  <div className="lg:col-span-3 bg-[#0E3A2B] bg-waves rounded-3xl p-6 text-white shadow-lg flex flex-col justify-between relative overflow-hidden">
+                    <div>
+                      <h3 className="text-xs font-semibold text-emerald-200">Time Tracker</h3>
+                    </div>
+
+                    <div className="my-4 text-center">
+                      <div className="text-3xl lg:text-4xl font-extrabold tracking-wider font-mono text-white">
+                        {formatTimer(timerSeconds)}
+                      </div>
+                      <span className="text-[10px] text-emerald-300 font-mono">Live Session Active</span>
+                    </div>
+
+                    {/* Player Controls matching Donezo image */}
+                    <div className="flex items-center justify-center space-x-3 pt-2">
+                      <button
+                        onClick={() => setIsTimerRunning(!isTimerRunning)}
+                        className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer"
+                        title={isTimerRunning ? 'Pause' : 'Resume'}
+                      >
+                        {isTimerRunning ? '⏸' : '▶'}
+                      </button>
+                      <button
+                        onClick={() => { setIsTimerRunning(false); setTimerSeconds(0); }}
+                        className="w-10 h-10 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer shadow-sm"
+                        title="Reset Timer"
+                      >
+                        ⏹
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB: TASKS & QUEUE (FULL INTERACTIVE DEV-103 TABLE) */}
+            {activeTab === 'tasks' && (
+              <div className="space-y-6">
+                
+                {/* Actionable recommendations strip */}
+                {actionableRecommendations.length > 0 && (
+                  <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h2 className="text-sm font-bold text-slate-900">Recommended Manager Interventions</h2>
+                        <p className="text-xs text-slate-400">High-risk bottlenecks requiring immediate squad reassignment</p>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                        {actionableRecommendations.length} Pending Actions
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {actionableRecommendations.slice(0, 2).map(ticket => {
+                        const isReassign = ticket.actionType === 'Reassign';
+                        const currentTeam = teams.find(tm => tm.id === ticket.assignedTeamId);
+                        const targetTeam = teams.find(tm => tm.id === 'team-b');
+
+                        return (
+                          <div key={ticket.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-center mb-1.5">
+                                <span className="font-mono font-bold text-xs px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-800">
+                                  {ticket.id} • {ticket.category}
+                                </span>
+                                <span className="text-rose-600 font-semibold text-xs">
+                                  {ticket.deadlineHoursLeft > 0 ? `${ticket.deadlineHoursLeft}h until breach` : 'Past Due'}
+                                </span>
+                              </div>
+                              <h4 className="text-xs font-bold text-slate-900 mt-2">{ticket.problem}</h4>
+                              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                                {isReassign ? (
+                                  <><strong>{currentTeam?.name.split('-')[0]}</strong> is overloaded ({currentTeam?.activeTickets}/10). Rebalance to <strong>{targetTeam?.name.split('-')[0]}</strong>.</>
+                                ) : (
+                                  <>{ticket.flagReason}</>
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-200/70 flex items-center space-x-2">
+                              {isReassign && (
+                                <button
+                                  onClick={() => handleReassign(ticket.id, 'team-b')}
+                                  className="flex-1 py-2 px-3 rounded-xl bg-[#134E39] hover:bg-[#0E3A2B] text-white text-xs font-bold transition cursor-pointer"
+                                >
+                                  Transfer to Team B
+                                </button>
+                              )}
+                              {!isReassign && (
+                                <button
+                                  onClick={() => handleEscalate(ticket.id)}
+                                  className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition cursor-pointer"
+                                >
+                                  Escalate Ticket
+                                </button>
+                              )}
+                              <button
+                                onClick={() => { setExplainTicketId(ticket.id); setActiveTab('explainability'); }}
+                                className="py-2 px-3 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
+                              >
+                                Evidence
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Queue Table */}
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900">Operational Triage Queue</h2>
+                      <p className="text-xs text-slate-400">Real-time incident stream, SLA countdown, and squad balancing</p>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 overflow-x-auto text-xs">
+                      {['All', 'High', 'Breached', 'Payments', 'Infrastructure'].map(cat => (
+                        <button
+                          key={cat}
+                          onClick={() => setSearchQuery(cat === 'All' ? '' : cat.toLowerCase())}
+                          className="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium cursor-pointer transition"
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/60 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-3.5 px-6">ID</th>
+                          <th className="py-3.5 px-6">Problem</th>
+                          <th className="py-3.5 px-6">Priority</th>
+                          <th className="py-3.5 px-6">SLA Countdown</th>
+                          <th className="py-3.5 px-6">Risk</th>
+                          <th className="py-3.5 px-6">Assigned Squad</th>
+                          <th className="py-3.5 px-6 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredTickets.map(ticket => {
+                          const team = teams.find(t => t.id === ticket.assignedTeamId);
+                          const isOverdue = ticket.deadlineHoursLeft <= 0;
+
+                          return (
+                            <tr key={ticket.id} className="hover:bg-slate-50/80 transition">
+                              <td className="py-4 px-6 font-mono font-bold text-slate-900">
+                                <button onClick={() => { setExplainTicketId(ticket.id); setActiveTab('explainability'); }} className="hover:underline cursor-pointer">
+                                  {ticket.id}
+                                </button>
+                              </td>
+                              <td className="py-4 px-6 max-w-sm">
+                                <div className="font-semibold text-slate-900">{ticket.problem}</div>
+                                <div className="text-[11px] text-slate-400">{ticket.category} • Pending {ticket.pendingHours}h</div>
+                              </td>
+                              <td className="py-4 px-6">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                  ticket.priority === 'Critical' ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {ticket.priority}
+                                </span>
+                              </td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <div className={`font-semibold ${isOverdue ? 'text-rose-600 font-mono' : 'text-slate-800'}`}>
+                                  {isOverdue ? 'Breached (Overdue)' : `${ticket.deadlineHoursLeft}h remaining`}
+                                </div>
+                              </td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                                  ticket.riskLevel === 'High' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {ticket.riskScore}/100
+                                </span>
+                              </td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <div className="font-semibold text-slate-900">{team ? team.name.split('-')[0] : 'Unassigned'}</div>
+                                <div className="text-[11px] text-slate-400">Lead: {team?.lead}</div>
+                              </td>
+                              <td className="py-4 px-6 text-right whitespace-nowrap">
+                                <button
+                                  onClick={() => handleReassign(ticket.id, 'team-b')}
+                                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#134E39] hover:bg-[#0E3A2B] text-white mr-1.5 transition cursor-pointer"
+                                >
+                                  Transfer
+                                </button>
+                                <button
+                                  onClick={() => { setExplainTicketId(ticket.id); setActiveTab('explainability'); }}
+                                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                                >
+                                  Evidence
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB: BOTTLENECKS & FORECAST */}
+            {activeTab === 'bottlenecks' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">Workload Surge Forecast (Time-Series)</h2>
+                      <p className="text-xs text-slate-400">Predicting queue volume against 75-concurrent squad capacity</p>
+                    </div>
+                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200 self-start sm:self-auto">
+                      ⚡ Projected Spike: 13:00 (Deficit: 50 Tasks)
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      { hour: '09:00', incoming: 45, cap: 75, status: 'Normal' },
+                      { hour: '11:00', incoming: 80, cap: 75, status: 'Elevated' },
+                      { hour: '13:00', incoming: 125, cap: 75, status: 'Bottleneck Spike' },
+                      { hour: '15:00', incoming: 90, cap: 75, status: 'Elevated' },
+                      { hour: '17:00', incoming: 55, cap: 75, status: 'Normal' }
+                    ].map(slot => (
+                      <div key={slot.hour} className="space-y-1.5 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-bold text-slate-900">{slot.hour}</span>
+                          <span className="text-slate-500">Incoming: <strong className="text-slate-800">{slot.incoming} tasks</strong> ({slot.status})</span>
+                        </div>
+                        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div style={{ width: `${Math.min(100, (slot.incoming / 130) * 100)}%` }} className={`h-full rounded-full ${slot.incoming > 75 ? 'bg-rose-500' : 'bg-[#134E39]'}`}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                  <h3 className="text-base font-bold text-slate-900 mb-4">NLP Pattern Summarizer</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {AI_PATTERN_INSIGHTS.map((item, idx) => (
+                      <div key={idx} className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-bold text-slate-900">{item.category}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">{item.frequency}</span>
+                          </div>
+                          <h4 className="text-xs font-bold text-slate-800 mb-1.5">{item.title}</h4>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">{item.summary}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-4 pt-3 border-t border-slate-200/70">
+                          {item.tags.map(t => (
+                            <span key={t} className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">#{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: SQUAD DISPATCH */}
+            {activeTab === 'squads' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                  <h2 className="text-lg font-bold text-slate-900 mb-1">Squad Bandwidth & Capacity Allocation</h2>
+                  <p className="text-xs text-slate-400 mb-5">Click a squad card to view active tasks and balance workload</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {teams.map(team => {
+                      const util = Math.round((team.activeTickets / team.maxCapacity) * 100);
+                      const isOverloaded = util >= 80;
+                      const isSelected = selectedSquadId === team.id;
+
+                      return (
+                        <div
+                          key={team.id}
+                          onClick={() => setSelectedSquadId(team.id)}
+                          className={`rounded-2xl p-5 border transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-50/50 border-[#134E39] shadow-sm'
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-xs font-bold text-slate-900">{team.name}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isOverloaded ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-emerald-50 text-[#134E39] border border-emerald-200'
+                            }`}>
+                              {isOverloaded ? 'OVERLOADED' : 'AVAILABLE'}
+                            </span>
+                          </div>
+                          <div className="space-y-1 mb-3">
+                            <div className="flex justify-between text-xs text-slate-500">
+                              <span>Load</span>
+                              <span className="font-bold text-slate-800 font-mono">{util}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div style={{ width: `${Math.min(100, util)}%` }} className={`h-full rounded-full ${isOverloaded ? 'bg-rose-500' : 'bg-[#134E39]'}`}></div>
+                            </div>
+                            <div className="text-[10px] text-slate-400">{team.activeTickets} of {team.maxCapacity} slots filled</div>
+                          </div>
+                          <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                            Lead: <strong className="text-slate-800">{team.lead}</strong>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Selected Squad Queue */}
+                {(() => {
+                  const currentSquad = teams.find(t => t.id === selectedSquadId);
+                  const squadTickets = tickets.filter(t => t.assignedTeamId === selectedSquadId);
+
+                  return (
+                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                      <h3 className="text-sm font-bold text-slate-900 mb-1">Active Tasks in {currentSquad?.name}</h3>
+                      <p className="text-xs text-slate-400 mb-4">Click Transfer to balance with available squads</p>
+                      
+                      <div className="divide-y divide-slate-100">
+                        {squadTickets.map(t => (
+                          <div key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-mono font-bold text-xs text-slate-900">{t.id}</span>
+                                <span className="text-xs text-slate-500">• {t.category}</span>
+                              </div>
+                              <div className="text-xs font-semibold text-slate-800 mt-0.5">{t.problem}</div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-slate-400 font-mono">{t.deadlineHoursLeft}h left</span>
+                              <button
+                                onClick={() => handleReassign(t.id, selectedSquadId === 'team-b' ? 'team-a' : 'team-b')}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#134E39] hover:bg-[#0E3A2B] text-white transition cursor-pointer"
+                              >
+                                Transfer Task
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* TAB: EXPLAINABLE DECISIONS */}
+            {activeTab === 'explainability' && (
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                <h2 className="text-lg font-bold text-slate-900 mb-1">Explainable AI Decision Engine</h2>
+                <p className="text-xs text-slate-400 mb-6">Multi-factor evidence chains and feature attribution (DEV-103 Pillar 4)</p>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Select Ticket</span>
+                    {tickets.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => setExplainTicketId(t.id)}
+                        className={`w-full text-left p-3.5 rounded-2xl border transition flex justify-between items-center cursor-pointer ${
+                          t.id === explainTicketId
+                            ? 'bg-emerald-50/70 border-[#134E39]'
+                            : 'bg-slate-50/60 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-mono font-bold text-xs text-slate-900">{t.id} • {t.category}</div>
+                          <div className="text-[11px] text-slate-500 truncate max-w-[170px]">{t.problem}</div>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-rose-600">{t.riskScore}/100</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="lg:col-span-2 bg-slate-50 rounded-2xl p-6 border border-slate-200/80 space-y-5">
+                    <div className="flex justify-between items-start pb-4 border-b border-slate-200">
+                      <div>
+                        <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-900">{activeExplainTicket.id}</span>
+                        <h3 className="text-sm font-bold text-slate-900 mt-2">{activeExplainTicket.problem}</h3>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase font-bold text-slate-400">Recommendation</div>
+                        <div className="text-xs font-bold text-[#134E39] mt-0.5">{activeExplainTicket.suggestedAction}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5">Evidence Chain Supporting Recommendation</h4>
+                      <div className="space-y-2 text-xs">
+                        {(activeExplainTicket.evidence || [activeExplainTicket.flagReason]).map((e, idx) => (
+                          <div key={idx} className="p-3 rounded-xl bg-white border border-slate-200/80 flex items-start space-x-2 text-slate-700">
+                            <span className="font-mono font-bold text-[#134E39]">0{idx + 1}.</span>
+                            <span>{e}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="p-4 rounded-xl bg-white border border-slate-200/80">
+                        <div className="text-[10px] font-bold uppercase text-slate-400">Impact Estimate</div>
+                        <div className="font-bold text-slate-900 mt-1">{activeExplainTicket.impactEstimate}</div>
+                      </div>
+                      <div className="p-4 rounded-xl bg-white border border-slate-200/80">
+                        <div className="text-[10px] font-bold uppercase text-slate-400">Model Confidence</div>
+                        <div className="font-bold text-emerald-700 mt-1 font-mono">94% (Random Forest Classifier)</div>
+                      </div>
+                    </div>
+
+                    {activeExplainTicket.actionType === 'Reassign' && (
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          onClick={() => handleReassign(activeExplainTicket.id, 'team-b')}
+                          className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#134E39] hover:bg-[#0E3A2B] transition cursor-pointer shadow-sm"
+                        >
+                          Approve Transfer to Team B
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: BASELINE VS IMPACT SCORECARD */}
+            {activeTab === 'scorecard' && (
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Baseline vs. AI Decision Engine Scorecard</h2>
+                    <p className="text-xs text-slate-400">Empirical benchmark comparison on SLA adherence, turnaround time, and squad burnout</p>
+                  </div>
+
+                  <div className="flex items-center space-x-1 p-1 bg-slate-100 rounded-2xl text-xs self-start sm:self-auto">
+                    <button onClick={() => setScorecardMode('comparison')} className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer ${scorecardMode === 'comparison' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}>Side-by-Side</button>
+                    <button onClick={() => setScorecardMode('baseline')} className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer ${scorecardMode === 'baseline' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}>Baseline</button>
+                    <button onClick={() => setScorecardMode('proposed')} className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer ${scorecardMode === 'proposed' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}>AI Engine</button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">1. SLA Compliance</span>
+                      <div className="flex items-baseline space-x-3 mt-3">
+                        {scorecardMode !== 'proposed' && <span className={`text-2xl font-bold font-mono ${scorecardMode === 'comparison' ? 'line-through text-slate-400' : 'text-slate-900'}`}>{PERFORMANCE_SCORECARD.baseline.slaComplianceRate}</span>}
+                        {scorecardMode === 'comparison' && <span className="text-slate-400">→</span>}
+                        {scorecardMode !== 'baseline' && <span className="text-4xl font-extrabold text-[#134E39] font-mono">{PERFORMANCE_SCORECARD.proposed.slaComplianceRate}</span>}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Percentage of incoming issues resolved within SLA limits.</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-200 font-bold text-[#134E39] text-xs font-mono">{PERFORMANCE_SCORECARD.improvements.slaGain} net SLA improvement</div>
+                  </div>
+
+                  <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">2. Mean Turnaround Time</span>
+                      <div className="flex items-baseline space-x-3 mt-3">
+                        {scorecardMode !== 'proposed' && <span className={`text-2xl font-bold font-mono ${scorecardMode === 'comparison' ? 'line-through text-slate-400' : 'text-slate-900'}`}>{PERFORMANCE_SCORECARD.baseline.avgTurnaroundHours}</span>}
+                        {scorecardMode === 'comparison' && <span className="text-slate-400">→</span>}
+                        {scorecardMode !== 'baseline' && <span className="text-4xl font-extrabold text-[#134E39] font-mono">{PERFORMANCE_SCORECARD.proposed.avgTurnaroundHours}</span>}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Average turnaround hours to resolve customer issues.</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-200 font-bold text-[#134E39] text-xs font-mono">{PERFORMANCE_SCORECARD.improvements.timeReduction} turnaround reduction</div>
+                  </div>
+
+                  <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">3. Squad Overload Duration</span>
+                      <div className="flex items-baseline space-x-3 mt-3">
+                        {scorecardMode !== 'proposed' && <span className={`text-2xl font-bold font-mono ${scorecardMode === 'comparison' ? 'line-through text-slate-400' : 'text-slate-900'}`}>{PERFORMANCE_SCORECARD.baseline.overloadedSquadHours}</span>}
+                        {scorecardMode === 'comparison' && <span className="text-slate-400">→</span>}
+                        {scorecardMode !== 'baseline' && <span className="text-4xl font-extrabold text-[#134E39] font-mono">{PERFORMANCE_SCORECARD.proposed.overloadedSquadHours}</span>}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Weekly hours squads operate at over-capacity threshold.</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-200 font-bold text-[#134E39] text-xs font-mono">{PERFORMANCE_SCORECARD.improvements.burnoutReduction} burnout reduction</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* IMPORT CSV MODAL */}
+          {isUploadOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 text-xs">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-base font-bold text-slate-900">Import Operations Dataset</h3>
+                  <button onClick={() => setIsUploadOpen(false)} className="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">✕</button>
+                </div>
+                <p className="text-slate-500 mb-3">Paste CSV data or use pre-configured Devithon sample data:</p>
+                <textarea
+                  rows="5"
+                  value={csvInput}
+                  onChange={e => setCsvInput(e.target.value)}
+                  placeholder="ticket_id,problem,category,priority,pending_hours,deadline_hours_left,assigned_team,status"
+                  className="w-full text-xs font-mono p-3 bg-slate-50 rounded-2xl border border-slate-200 text-slate-800 mb-3 focus:outline-none focus:border-[#134E39]"
+                ></textarea>
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setCsvInput(`ticket_id,problem,category,priority,pending_hours,deadline_hours_left,assigned_team,status
+T103,Production Server down in US-East cluster,Infrastructure,Critical,1.0,0.5,Team C - DevOps,Pending
+T104,Refund delay for 45 pending orders,Billing,High,10.0,-2.0,Team A - Payments,Escalated
+T101,Payment failure at checkout webhook,Payments,High,5.0,1.0,Team A - Payments,Pending`);
+                    }}
+                    className="text-xs text-[#134E39] font-bold underline cursor-pointer"
+                  >
+                    Insert Sample Data
+                  </button>
+                  <div className="flex space-x-2">
+                    <button onClick={() => setIsUploadOpen(false)} className="px-3 py-2 text-xs text-slate-500 cursor-pointer">Cancel</button>
+                    <button
+                      onClick={() => {
+                        setIsUploadOpen(false);
+                        showToast('✓ Sample dataset processed successfully');
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#134E39] hover:bg-[#0E3A2B] transition cursor-pointer"
+                    >
+                      Process CSV
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
