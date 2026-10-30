@@ -1,39 +1,40 @@
-﻿import React from 'react';
+import React from 'react';
+import { TrendingUp } from 'lucide-react';
 import { AI_PATTERN_INSIGHTS, HOURLY_WORKLOAD_FORECAST } from '../data/mockData';
 
 export default function BottleneckForecastView() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       
       {/* View Header */}
-      <div className="pb-3 border-b border-[#2D4A53]">
+      <div className="pb-4 border-b border-[#E2EAE5]">
         <div className="flex items-center space-x-2">
-          <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 bg-[#132E35] border border-[#2D4A53] text-[#AFB3B7]">
-            PILLARS 1 & 2
+          <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-[#DCE9E1]/70 border border-[#145C43]/20 text-[#145C43] rounded-md">
+            PILLARS 1 &amp; 2
           </span>
-          <span className="text-xs text-[#69818D]">Pattern Detection & Predictive Forecasting</span>
+          <span className="text-xs text-[#667873]">Pattern Detection &amp; Predictive Forecasting</span>
         </div>
-        <h2 className="text-xl font-bold tracking-tight text-[#AFB3B7] mt-1">
-          Workload Surge Forecasting & AI Pattern Identification
+        <h2 className="text-xl font-bold tracking-tight text-[#172B28] mt-1">
+          Workload Surge Forecasting &amp; AI Pattern Identification
         </h2>
-        <p className="text-xs text-[#69818D] mt-1 max-w-3xl">
+        <p className="text-xs text-[#667873] mt-1 max-w-3xl">
           Uses AI/ML time-series forecasting to predict impending queue surges and NLP pattern summarization to identify recurring performance bottlenecks.
         </p>
       </div>
 
-      {/* 1. Workload Surge Forecasting (Sharp edges, #132E35) */}
-      <div className="bg-[#132E35] border border-[#2D4A53] p-6 shadow-xs">
+      {/* 1. Workload Surge Forecasting */}
+      <div className="bg-white border border-[#E2EAE5] rounded-2xl p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-[#AFB3B7]">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[#172B28]">
               Hourly Workload Surge Forecast vs Squad Capacity
             </h3>
-            <p className="text-xs text-[#69818D]">
+            <p className="text-xs text-[#667873]">
               Machine learning forecast of ticket volume spikes against total concurrent squad bandwidth
             </p>
           </div>
-          <span className="text-xs font-bold px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 self-start sm:self-auto font-mono">
-            ⚡ PREDICTED SURGE: 13:00 - 15:00
+          <span className="text-xs font-bold px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-md self-start sm:self-auto font-mono">
+            <span className="inline-flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5 text-rose-700" />PREDICTED SURGE: 13:00 - 15:00</span>
           </span>
         </div>
 
@@ -45,39 +46,39 @@ export default function BottleneckForecastView() {
             const capPct = Math.round((slot.squadCapacity / 140) * 100);
 
             return (
-              <div key={slot.hour} className="space-y-1 text-xs">
+              <div key={slot.hour} className="space-y-1.5 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="font-mono font-bold text-[#AFB3B7] w-16">
+                  <span className="font-mono font-bold text-[#172B28] w-16">
                     {slot.hour}
                   </span>
                   <div className="flex items-center space-x-3">
-                    <span className="text-[#69818D]">
-                      Forecast: <strong className="text-[#AFB3B7]">{slot.incomingTickets} tickets</strong> (Capacity: {slot.squadCapacity})
+                    <span className="text-[#667873]">
+                      Forecast: <strong className="text-[#172B28] font-mono">{slot.incomingTickets} tickets</strong> (Capacity: {slot.squadCapacity})
                     </span>
-                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 ${
+                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
                       isAnomaly
-                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
                         : slot.anomalyStatus === 'Warning'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : 'bg-[#0D1F23] text-[#69818D] border border-[#2D4A53]'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-[#F4F7F5] text-[#667873] border border-[#E2EAE5]'
                     }`}>
                       {slot.anomalyStatus}
                     </span>
                   </div>
                 </div>
 
-                {/* Comparative Visual Bar (Sharp) */}
-                <div className="relative h-2.5 w-full bg-[#0D1F23] overflow-hidden border border-[#2D4A53]">
+                {/* Comparative Visual Bar */}
+                <div className="relative h-2.5 w-full bg-[#F4F7F5] overflow-hidden border border-[#E2EAE5] rounded-full">
                   <div
                     style={{ width: `${pct}%` }}
-                    className={`h-full transition-all ${
-                      isAnomaly ? 'bg-rose-500' : slot.incomingTickets >= 75 ? 'bg-amber-500' : 'bg-[#2D4A53]'
+                    className={`h-full transition-all rounded-full ${
+                      isAnomaly ? 'bg-rose-500' : slot.incomingTickets >= 75 ? 'bg-amber-500' : 'bg-[#145C43]'
                     }`}
                   ></div>
                   {/* Capacity Marker Line */}
                   <div
                     style={{ left: `${capPct}%` }}
-                    className="absolute top-0 bottom-0 w-0.5 bg-[#AFB3B7] z-10"
+                    className="absolute top-0 bottom-0 w-0.5 bg-[#172B28] z-10"
                     title={`Squad Capacity Limit: ${slot.squadCapacity}`}
                   ></div>
                 </div>
@@ -86,22 +87,22 @@ export default function BottleneckForecastView() {
           })}
         </div>
 
-        <div className="mt-5 pt-4 border-t border-[#2D4A53] flex items-center justify-between text-xs text-[#69818D]">
+        <div className="mt-5 pt-4 border-t border-[#E2EAE5] flex items-center justify-between text-xs text-[#667873]">
           <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 bg-[#AFB3B7] inline-block"></span>
+            <span className="w-2.5 h-2.5 bg-[#172B28] inline-block rounded-xs"></span>
             <span>Vertical line represents squad capacity limit (75 concurrent tickets)</span>
           </div>
-          <span className="text-rose-400 font-semibold font-mono">50-ticket deficit predicted at 13:00</span>
+          <span className="text-rose-600 font-semibold font-mono">50-ticket deficit predicted at 13:00</span>
         </div>
       </div>
 
-      {/* 2. NLP / LLM Pattern Summarizer (Sharp, #132E35) */}
-      <div className="bg-[#132E35] border border-[#2D4A53] p-6 shadow-xs">
+      {/* 2. NLP / LLM Pattern Summarizer */}
+      <div className="bg-white border border-[#E2EAE5] rounded-2xl p-6 shadow-2xs">
         <div className="mb-4">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-[#AFB3B7]">
-            NLP & LLM Pattern Summarizer (Root Cause Detection)
+          <h3 className="text-sm font-bold uppercase tracking-wider text-[#172B28]">
+            NLP &amp; LLM Pattern Summarizer (Root Cause Detection)
           </h3>
-          <p className="text-xs text-[#69818D]">
+          <p className="text-xs text-[#667873]">
             Natural language summaries explaining recurring operational gaps and root causes
           </p>
         </div>
@@ -110,30 +111,30 @@ export default function BottleneckForecastView() {
           {AI_PATTERN_INSIGHTS.map((insight, idx) => (
             <div
               key={idx}
-              className="p-5 bg-[#0D1F23] border border-[#2D4A53] flex flex-col justify-between"
+              className="p-5 bg-[#F4F7F5] border border-[#E2EAE5] rounded-xl flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-[#AFB3B7]">
+                  <span className="text-xs font-bold text-[#172B28]">
                     {insight.category}
                   </span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                     {insight.frequency}
                   </span>
                 </div>
-                <h4 className="text-xs font-bold text-[#AFB3B7] mb-2">
+                <h4 className="text-xs font-bold text-[#172B28] mb-2">
                   {insight.title}
                 </h4>
-                <p className="text-xs text-[#69818D] leading-relaxed mb-4">
+                <p className="text-xs text-[#667873] leading-relaxed mb-4">
                   {insight.summary}
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 pt-3 border-t border-[#2D4A53]">
+              <div className="flex flex-wrap gap-1.5 pt-3 border-t border-[#E2EAE5]">
                 {insight.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-[10px] font-mono px-1.5 py-0.5 bg-[#132E35] text-[#AFB3B7] border border-[#2D4A53]"
+                    className="text-[10px] font-mono px-2 py-0.5 bg-white text-[#172B28] border border-[#E2EAE5] rounded-md"
                   >
                     #{tag}
                   </span>

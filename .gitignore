@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+.pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+dist/
+frontend/dist/
+.env
+

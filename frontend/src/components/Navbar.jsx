@@ -16,11 +16,11 @@ export default function Navbar({
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const tabs = [
-    { id: 'triage', label: '🎯 Triage & Recommendations' },
-    { id: 'bottlenecks', label: '🔮 Bottlenecks & Patterns' },
-    { id: 'squads', label: '👥 Squad Dispatch & Allocation' },
-    { id: 'explainability', label: '🔍 Explainable Decisions' },
-    { id: 'scorecard', label: '📊 Baseline vs Solution Impact' }
+    { id: 'triage', label: 'Triage & Recommendations' },
+    { id: 'bottlenecks', label: 'Bottlenecks & Patterns' },
+    { id: 'squads', label: 'Squad Dispatch & Allocation' },
+    { id: 'explainability', label: 'Explainable Decisions' },
+    { id: 'scorecard', label: 'Baseline vs Solution Impact' }
   ];
 
   return (
@@ -33,7 +33,7 @@ export default function Navbar({
           {/* Logo & Product Identity */}
           <div className="flex items-center space-x-3.5">
             <div className="h-9 w-9 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold text-base shadow-xs">
-              ⚡
+              
             </div>
             <div>
               <div className="flex items-center space-x-2">
@@ -59,7 +59,7 @@ export default function Navbar({
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition active:scale-95 cursor-pointer"
               title="Runs optimization algorithm to balance overloaded squads"
             >
-              <span>⚡ Auto-Optimize Workload</span>
+              <span>Auto-Optimize Workload</span>
             </button>
 
             {/* Backend Data Source Mode */}
@@ -84,7 +84,7 @@ export default function Navbar({
                 title="Connect to FastAPI on port 8000"
               >
                 <span>FastAPI</span>
-                <span className={`w-1.5 h-1.5 rounded-full ${isLiveBackend ? 'bg-[#2D4A53] animate-pulse' : 'bg-slate-400'}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full ${isLiveBackend ? 'bg-[#165A3D] animate-pulse' : 'bg-slate-400'}`}></span>
               </button>
             </div>
 
