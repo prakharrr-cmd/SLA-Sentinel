@@ -6,7 +6,7 @@
 import { INITIAL_TEAMS, INITIAL_TICKETS } from '../data/mockData';
 
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000',
+  BASE_URL: typeof window !== 'undefined' && window.location.hostname ? `http://${window.location.hostname}:8000` : 'http://127.0.0.1:8000',
   CURRENT_DATASET_ID: null,
 };
 
